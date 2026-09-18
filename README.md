@@ -1,4 +1,4 @@
-# SIMON SAYS [Check it out!](https://victoriousj.github.io/react-redux-simon-says/)
+# SIMON SAYS [Check it out!](https://dangervalentine.github.io/react-redux-simon-says/)
 
 ![React](./react.png?raw=true 'React')![Babel](./babel.png?raw=true 'Babel')![Webpack](./webpack.png?raw=true 'Webpack')
 

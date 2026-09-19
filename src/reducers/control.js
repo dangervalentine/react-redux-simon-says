@@ -24,7 +24,10 @@ const nextEvent = (state, type) => ({
 // `buttonColors` used to be mirrored into state as a copy of the scheme list.
 // The palette is a constant, not state — the component reads it straight from
 // theme.js now, and only the selected index lives here.
-const initialState = {
+// Exported so main.jsx can hand createStore a preloaded state with the
+// persisted high score folded in, rather than the reducer reaching into
+// localStorage itself.
+export const initialState = {
   score: "000",
   hScore: "000",
   colorScheme: 0,

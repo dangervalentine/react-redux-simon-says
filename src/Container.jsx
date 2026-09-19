@@ -20,6 +20,7 @@ const Container = () => {
   const dispatch = useDispatch();
 
   const score = useSelector((s) => s.score);
+  const hScore = useSelector((s) => s.hScore);
   const isPlaying = useSelector((s) => s.isPlaying);
   const inputPause = useSelector((s) => s.inputPause);
   const colorScheme = useSelector((s) => s.colorScheme);
@@ -138,6 +139,7 @@ const Container = () => {
 
         <Controls
           score={score}
+          hScore={hScore}
           isPlaying={isPlaying}
           isReplaying={isReplaying}
           isFailing={isFailing}

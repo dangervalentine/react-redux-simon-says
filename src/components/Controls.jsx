@@ -11,6 +11,7 @@ import ControlButtons from './ControlButtons';
  */
 const Controls = ({
   score,
+  hScore,
   isPlaying,
   isReplaying,
   isFailing,
@@ -33,6 +34,7 @@ const Controls = ({
     <div className="game-controls">
       <Score
         score={score}
+        hScore={hScore}
         isPlaying={isPlaying}
         isReplaying={isReplaying}
         isFailing={isFailing}

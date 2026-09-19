@@ -179,6 +179,11 @@ export const ui = {
   // real seven-segment panel rather than empty space.
   screenOn: accent.cyan,
   screenIdle: text.secondary,
+  // Dimmed display text — the high score, which shares the panel with the
+  // live readout but must never compete with it. A mix rather than an alpha
+  // so it stays legible against the screen's near-black rather than sinking
+  // into it the way a low-opacity mint would.
+  screenOffText: mix(accent.cyan, background.floor, 0.62),
   // Ghost segments have to stay well under the live value or "000" painted
   // over a "888" ghost just reads as 888.
   screenOff: alpha(accent.cyan, 0.09),

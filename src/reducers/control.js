@@ -1,11 +1,29 @@
 import * as ControlActionTypes from "../actiontypes/control";
-import { sounds, colorSchemes } from "../resources";
+import { colorSchemes } from "../theme";
 import {
   parseScore,
   getNextColorScheme,
   fetchRandomButtonIndex
 } from "../helpers";
 
+/**
+ * Outcome signal for the view layer.
+ *
+ * Sounds used to be played from inside this reducer, which made it impure and
+ * meant the audio fired at whatever moment the action happened to dispatch —
+ * there was no way to sequence a cue against an animation. The reducer now
+ * just records *that* something happened; Container decides how it sounds and
+ * looks. The counter is what lets two identical outcomes in a row each
+ * retrigger, since the object identity alone wouldn't change.
+ */
+const nextEvent = (state, type) => ({
+  type,
+  id: (state.lastEvent?.id ?? 0) + 1
+});
+
+// `buttonColors` used to be mirrored into state as a copy of the scheme list.
+// The palette is a constant, not state — the component reads it straight from
+// theme.js now, and only the selected index lives here.
 const initialState = {
   score: "000",
   hScore: "000",
@@ -15,7 +33,7 @@ const initialState = {
   currentButton: null,
   playbackSequence: [],
   playerPlaybackSequence: [],
-  buttonColors: colorSchemes
+  lastEvent: null
 };
 
 export default function Control(state = initialState, action) {
@@ -25,9 +43,11 @@ export default function Control(state = initialState, action) {
         ...state,
         score: "000",
         isPlaying: false,
+        inputPause: false,
         currentButton: null,
         playbackSequence: [],
-        playerPlaybackSequence: []
+        playerPlaybackSequence: [],
+        lastEvent: null
       };
     }
 
@@ -71,12 +91,17 @@ export default function Control(state = initialState, action) {
       // Start at the end of the array and work back
       for (let i = newPlayerPlaybackSequence.length; i--; ) {
         if (state.playbackSequence[i] !== newPlayerPlaybackSequence[i]) {
-          const soundEffect = new Audio();
-          soundEffect.src = sounds[4];
-          soundEffect.volume = 0.07;
-          soundEffect.play();
-
-          return Control(state, { type: ControlActionTypes.GAME_END });
+          // A wrong press stops the game but deliberately does NOT clear the
+          // board yet: the container plays the fail cue against the score the
+          // player actually reached, then dispatches GAME_END to reset. The
+          // old version reset in the same tick, so the number blinked away
+          // before you could read it.
+          return {
+            ...state,
+            isPlaying: false,
+            inputPause: true,
+            lastEvent: nextEvent(state, "fail")
+          };
         }
       }
 
@@ -87,16 +112,10 @@ export default function Control(state = initialState, action) {
         };
       }
 
-      const soundEffect = new Audio();
-      soundEffect.volume = 0.6;
-      soundEffect.src = sounds[5];
-      setTimeout(() => soundEffect.play(), 200);
-
-      state = parseScore(state);
-
-      return Control(state, {
-        type: ControlActionTypes.ADD_TO_PLAYBACK_SEQUENCE
-      });
+      return Control(
+        { ...parseScore(state), lastEvent: nextEvent(state, "round") },
+        { type: ControlActionTypes.ADD_TO_PLAYBACK_SEQUENCE }
+      );
     }
 
     case ControlActionTypes.ADD_TO_PLAYBACK_SEQUENCE: {
@@ -115,7 +134,7 @@ export default function Control(state = initialState, action) {
     case ControlActionTypes.GAME_CHANGE_COLOR_SCHEME: {
       return {
         ...state,
-        colorScheme: getNextColorScheme(state)
+        colorScheme: getNextColorScheme(state.colorScheme, colorSchemes.length)
       };
     }
 

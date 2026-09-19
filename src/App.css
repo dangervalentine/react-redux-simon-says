@@ -1,51 +1,124 @@
+/*
+ * Colour
+ * ------
+ * Every colour below resolves through a `--no-*` (raw Night Owl token) or
+ * `--ui-*` (semantic name / pre-composited alpha blend) custom property.
+ * Those are installed on :root by applyThemeVars() in main.jsx from
+ * src/theme.js — the same module the pad colours come from, so the console
+ * and the pads can't drift apart. The literal after each var() is the
+ * fallback for the brief window before that module runs.
+ *
+ * Going dark here wasn't a value swap. The old design was a light plastic
+ * toy: a silver case, a white control disc, and depth sold by dark inset
+ * shadows. On a near-black ground those shadows read as nothing, so the
+ * material story inverts — depth now comes from tonal steps between the
+ * background layers plus a hairline of light along each raised top edge.
+ */
+
 @font-face {
   font-family: Digital;
   src: url(./fonts/digital-subset.ttf);
+  font-display: swap;
 }
 
 @font-face {
-  font-family: "Lilita One";
+  font-family: 'Lilita One';
   src: url(./fonts/LilitaOne-Regular.ttf);
+  font-display: swap;
 }
 
-@keyframes slideInFromLeft {
-  0% {
-    opacity: 0.01;
-    transform: rotate(-360deg) translateX(-100%);
+/*
+ * Entrance: the console powers on.
+ *
+ * What was here before spun the whole unit through 360 degrees while sliding
+ * it in from off-screen left and fading up from opacity 0.01 — a long, busy
+ * move that said nothing about what the thing is. This instead assembles the
+ * device: the body settles, the four pads bloom outward from the centre a
+ * beat apart, and the readout flickers awake last.
+ *
+ * Everything is opacity and transform only, so it composites on the GPU and
+ * never lands mid-layout.
+ */
+@keyframes console-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
   }
-  100% {
+  to {
     opacity: 1;
-    transform: rotate(0deg) translate(0%);
-    transition: transform 0.3s, opacity 0.3s;
+    transform: scale(1);
   }
+}
+
+/*
+ * Each pad grows from the disc's centre rather than its own box — that's what
+ * makes the ring look like it is being drawn outward instead of four squares
+ * popping in. The origin is set per quadrant below.
+ */
+@keyframes pad-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes disc-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* A cold display doesn't come up cleanly. */
+@keyframes screen-wake {
+  0%, 38% { opacity: 0; }
+  46% { opacity: 1; }
+  52% { opacity: 0.25; }
+  60% { opacity: 1; }
+  66% { opacity: 0.6; }
+  100% { opacity: 1; }
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #34495e;
+  /*
+   * Hardcoded rather than var()-driven: this paints before main.jsx executes,
+   * so it's what prevents a light flash on first load. Keep in sync with
+   * colors.background.base in theme.js.
+   */
+  background-color: #011627;
+  /* Opts native scrollbars, form controls and focus rings into dark. */
+  color-scheme: dark;
+  color: var(--ui-text-primary, #d6deeb);
   overflow: hidden;
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
 }
 
 * {
   box-sizing: border-box;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
-  -khtml-user-select: none;
   -moz-user-select: none;
-  -ms-user-select: none;
   user-select: none;
 }
+
+/* ─────────────────────────── the console ─────────────────────────── */
 
 .container {
   height: 75vh;
@@ -55,15 +128,45 @@ code {
   justify-content: center;
   flex-wrap: wrap;
   flex-direction: row;
-  background-color: #2c3e50;
+  background-color: var(--ui-case, #0a1e30);
   position: relative;
   margin: 10vh auto;
   padding: 2vh;
   overflow: hidden;
   border-radius: 50%;
-  animation: 1s ease-out 0s 1 slideInFromLeft;
+  animation: console-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /*
+   * The case needs to separate from the page, and on a dark ground a drop
+   * shadow can't do it — the ring of light along the rim is what reads as a
+   * moulded edge catching the room.
+   */
+  box-shadow:
+    0 0 0 0.4vh var(--ui-rim, rgba(214, 222, 235, 0.1)),
+    0 2vh 6vh var(--no-background-floor, #010e18);
 }
 
+/*
+ * Reduced motion gets the finished console immediately. `animation: none` on
+ * its own would be wrong here — these animations use `both`, so removing them
+ * has to also mean the elements are left in their final state, which is what
+ * happens once no animation is applying a from-state.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .container,
+  .button,
+  .controls,
+  .game-screen {
+    animation: none;
+  }
+}
+
+/* ─────────────────────────── the four pads ─────────────────────────── */
+
+/*
+ * Pad colour is set inline from theme.js (see Button.jsx) — deliberately not
+ * duplicated here. It used to be declared in both places, which meant two
+ * sources of truth for the same four values.
+ */
 .button {
   height: 33.8vh;
   width: 33.5vh;
@@ -71,175 +174,139 @@ code {
   margin: 1vh;
   display: inline-block;
   overflow: hidden;
-}
-.button.shrink {
-  transform: scale(0.95);
-  transition: transform 1s ease;
+  padding: 0;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  /*
+   * The etched arc pattern. Each pad gets the same rings drawn from its own
+   * inner corner, using a translucent black so the lines tint toward whatever
+   * colour the pad currently is rather than being a fixed grey.
+   */
+  --arc: rgba(0, 0, 0, 0.14);
+  --arc-none: rgba(0, 0, 0, 0);
 }
 
-.button:hover .on {
-  cursor: pointer;
+.button:disabled {
+  cursor: default;
+}
+
+.button:focus-visible {
+  outline: 0.4vh solid var(--ui-text-primary, #d6deeb);
+  outline-offset: -0.8vh;
 }
 
 .overlay {
+  display: block;
   width: 100%;
   height: 100%;
   opacity: 0;
   transition: opacity 0.15s;
 }
 
+/*
+ * Pad flash. Brighter than the light theme's version: the pads sit on a much
+ * darker surround now, so a subtle white wash no longer reads as "this one
+ * lit up" at a glance.
+ */
 .overlay.on {
   background-image: radial-gradient(
     circle,
-    rgba(255, 255, 255, 0.4) 1%,
-    rgba(255, 255, 255, 0.1) 70%,
-    rgba(255, 255, 255, 0.05) 100%
+    var(--ui-flash, rgba(255, 255, 255, 0.45)) 1%,
+    var(--ui-flash-fade, rgba(255, 255, 255, 0.06)) 70%,
+    var(--ui-flash-fade, rgba(255, 255, 255, 0.06)) 100%
   );
   opacity: 1;
 }
 
+/*
+ * Pad entrance. `both` holds the from-state during the delay, so a pad stays
+ * invisible until its turn instead of flashing at full size first.
+ */
+.button {
+  animation: pad-in 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .button:nth-of-type(1) {
   border-radius: 500% 0 0 0;
-  background-color: #e74c3c;
+  transform-origin: bottom right;
+  animation-delay: 140ms;
   background-image: radial-gradient(
     circle at bottom right,
-    rgba(0, 0, 0, 0) 43%,
-    rgba(0, 0, 0, 0.1) 43.1%,
-    rgba(0, 0, 0, 0.1) 45%,
-    rgba(0, 0, 0, 0) 45.1%,
-    rgba(0, 0, 0, 0) 53%,
-    rgba(0, 0, 0, 0.1) 53.1%,
-    rgba(0, 0, 0, 0.1) 55%,
-    rgba(0, 0, 0, 0) 55.1%,
-    rgba(0, 0, 0, 0) 63%,
-    rgba(0, 0, 0, 0.1) 63.1%,
-    rgba(0, 0, 0, 0.1) 65%,
-    rgba(0, 0, 0, 0) 65.1%
+    var(--arc-none) 43%, var(--arc) 43.1%, var(--arc) 45%, var(--arc-none) 45.1%,
+    var(--arc-none) 53%, var(--arc) 53.1%, var(--arc) 55%, var(--arc-none) 55.1%,
+    var(--arc-none) 63%, var(--arc) 63.1%, var(--arc) 65%, var(--arc-none) 65.1%
   );
 }
 
 .button:nth-of-type(2) {
   border-radius: 0 500% 0 0;
-  background-color: #f1c40f;
+  transform-origin: bottom left;
+  animation-delay: 230ms;
   background-image: radial-gradient(
     circle at bottom left,
-    rgba(0, 0, 0, 0) 43%,
-    rgba(0, 0, 0, 0.1) 43.1%,
-    rgba(0, 0, 0, 0.1) 45%,
-    rgba(0, 0, 0, 0) 45.1%,
-    rgba(0, 0, 0, 0) 53%,
-    rgba(0, 0, 0, 0.1) 53.1%,
-    rgba(0, 0, 0, 0.1) 55%,
-    rgba(0, 0, 0, 0) 55.1%,
-    rgba(0, 0, 0, 0) 63%,
-    rgba(0, 0, 0, 0.1) 63.1%,
-    rgba(0, 0, 0, 0.1) 65%,
-    rgba(0, 0, 0, 0) 65.1%
+    var(--arc-none) 43%, var(--arc) 43.1%, var(--arc) 45%, var(--arc-none) 45.1%,
+    var(--arc-none) 53%, var(--arc) 53.1%, var(--arc) 55%, var(--arc-none) 55.1%,
+    var(--arc-none) 63%, var(--arc) 63.1%, var(--arc) 65%, var(--arc-none) 65.1%
   );
 }
 
 .button:nth-of-type(3) {
   border-radius: 0 0 0 500%;
-  background-color: #2ecc71;
+  transform-origin: top right;
+  animation-delay: 410ms;
   background-image: radial-gradient(
     circle at top right,
-    rgba(0, 0, 0, 0) 43%,
-    rgba(0, 0, 0, 0.1) 43.1%,
-    rgba(0, 0, 0, 0.1) 45%,
-    rgba(0, 0, 0, 0) 45.1%,
-    rgba(0, 0, 0, 0) 53%,
-    rgba(0, 0, 0, 0.1) 53.1%,
-    rgba(0, 0, 0, 0.1) 55%,
-    rgba(0, 0, 0, 0) 55.1%,
-    rgba(0, 0, 0, 0) 63%,
-    rgba(0, 0, 0, 0.1) 63.1%,
-    rgba(0, 0, 0, 0.1) 65%,
-    rgba(0, 0, 0, 0) 65.1%
+    var(--arc-none) 43%, var(--arc) 43.1%, var(--arc) 45%, var(--arc-none) 45.1%,
+    var(--arc-none) 53%, var(--arc) 53.1%, var(--arc) 55%, var(--arc-none) 55.1%,
+    var(--arc-none) 63%, var(--arc) 63.1%, var(--arc) 65%, var(--arc-none) 65.1%
   );
 }
 
 .button:nth-of-type(4) {
   border-radius: 0 0 500% 0;
-  background-color: #9b59b6;
+  transform-origin: top left;
+  animation-delay: 320ms;
   background-image: radial-gradient(
     circle at top left,
-    rgba(0, 0, 0, 0) 43%,
-    rgba(0, 0, 0, 0.1) 43.1%,
-    rgba(0, 0, 0, 0.1) 45%,
-    rgba(0, 0, 0, 0) 45.1%,
-    rgba(0, 0, 0, 0) 53%,
-    rgba(0, 0, 0, 0.1) 53.1%,
-    rgba(0, 0, 0, 0.1) 55%,
-    rgba(0, 0, 0, 0) 55.1%,
-    rgba(0, 0, 0, 0) 63%,
-    rgba(0, 0, 0, 0.1) 63.1%,
-    rgba(0, 0, 0, 0.1) 65%,
-    rgba(0, 0, 0, 0) 65.1%
+    var(--arc-none) 43%, var(--arc) 43.1%, var(--arc) 45%, var(--arc-none) 45.1%,
+    var(--arc-none) 53%, var(--arc) 53.1%, var(--arc) 55%, var(--arc-none) 55.1%,
+    var(--arc-none) 63%, var(--arc) 63.1%, var(--arc) 65%, var(--arc-none) 65.1%
   );
 }
+
+/* ─────────────────────────── centre disc ─────────────────────────── */
 
 .controls {
   height: 50%;
   width: 50%;
-  border: 2vh solid #2c3e50;
+  border: 2vh solid var(--ui-case, #0a1e30);
   position: absolute;
   border-radius: 50%;
   top: 50%;
   left: 50%;
   margin: -25% 0 0 -25%;
-  background-color: white;
+  background-color: var(--ui-bezel, #132a3e);
   z-index: 1;
   overflow: hidden;
-  box-shadow: inset 0 0.7vh 1.4vh rgba(0, 0, 0, 0.45),
-    inset 0 0.5vh 0.5vh rgba(0, 0, 0, 0.42);
+  /*
+   * Inset far heavier than the light theme's 45% black — against a near-black
+   * bezel that barely registered. The light hairline at the bottom is the
+   * bounce that stops the disc reading as a flat hole.
+   */
+  box-shadow:
+    inset 0 0.7vh 1.6vh var(--ui-inset, rgba(1, 14, 24, 0.85)),
+    inset 0 -0.3vh 0.6vh var(--ui-rim, rgba(214, 222, 235, 0.1));
+  animation: disc-in 420ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
 }
 
-.controls * {
-  position: relative;
-  display: inline-block;
-  overflow: hidden;
-}
+/*
+ * NB: there was a `.controls *` rule here forcing every descendant to
+ * position:relative; display:inline-block. It predated the control face
+ * being a flex column and silently broke any layout attempted inside it.
+ */
 
-.control-buttons {
-  height: 100%;
-  width: 100%;
-  position: relative;
-}
-
-.game-light {
-  height: 20%;
-  width: 10%;
-  background-color: #16a085;
-  border: 0.33vh solid #2c3e50;
-  border-radius: 50%;
-  position: absolute;
-  left: 65%;
-  top: 55%;
-}
-
-.game-controls {
-  height: 48%;
-  width: 100%;
-  border-top: 0.5vh solid #2c3e50;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  text-align: center;
-  border-radius: 0 0 500px 500px;
-  background-color: #ecf0f1;
-}
-
-.game-reset {
-  height: 20%;
-  width: 10%;
-  background-color: #c0392b;
-  border-radius: 50%;
-  border: 0.33vh solid #2c3e50;
-  position: absolute;
-  left: 25%;
-  top: 55%;
-  cursor: pointer;
-}
+/* ─────────────────────────── wordmark ─────────────────────────── */
 
 .game-name {
   height: 100%;
@@ -251,101 +318,465 @@ code {
   top: 0;
   left: 0;
   align-items: center;
+  /*
+   * The band-and-ring backdrop behind the wordmark. Was silver on slate;
+   * now the ring is a step up from the bezel and the groove a step down, so
+   * it still reads as a moulded detail without introducing a light surface.
+   */
   background-image: radial-gradient(
-    #bdc3c7 65%,
-    #2c3e50 65.01%,
-    #2c3e50 68%,
-    #bdc3c7 68.01%
+    var(--ui-face, #1d3b53) 65%,
+    var(--ui-case, #0a1e30) 65.01%,
+    var(--ui-case, #0a1e30) 68%,
+    var(--ui-face, #1d3b53) 68.01%
   );
 }
-.game-name span.name {
+
+/*
+ * The wordmark is the hidden control that cycles the pad colours. It has no
+ * caption on purpose, so the only thing advertising it is the way it answers
+ * the pointer — it lifts, brightens and picks up a mint glow. Enough to
+ * invite a click from anyone who runs a cursor over it, invisible to anyone
+ * who doesn't.
+ */
+.game-name .name {
   font-size: 7vh;
   margin-top: 2vh;
   position: absolute;
   top: 15%;
-  color: #2c3e50;
-  font-family: "Lilita One", monospace;
+  /* Sits above .game-name's own negative z-index so the press lands. */
+  z-index: 1;
+  color: var(--ui-wordmark, #d6deeb);
+  font-family: 'Lilita One', monospace;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.22s ease, text-shadow 0.22s ease, letter-spacing 0.22s ease;
 }
+
+.game-name .name:hover,
+.game-name .name:focus-visible {
+  transform: translateY(-0.35vh) scale(1.03);
+  color: var(--no-neutral-white, #ffffff);
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 1.6vh var(--ui-screen-on, #7fdbca);
+}
+
+.game-name .name:focus-visible {
+  outline: 0.3vh solid var(--ui-screen-on, #7fdbca);
+  outline-offset: 0.6vh;
+  border-radius: 0.6vh;
+}
+
+.game-name .name:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 0.06s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-name .name {
+    transition: color 0.22s ease, text-shadow 0.22s ease;
+  }
+  .game-name .name:hover,
+  .game-name .name:focus-visible {
+    transform: none;
+    letter-spacing: 0.02em;
+  }
+}
+
 .game-name span.game-name-buffer {
   width: 100%;
-  background-color: #bdc3c7;
+  background-color: var(--ui-face, #1d3b53);
   height: 8%;
 }
-.game-switch {
-  height: 20%;
-  width: 20%;
-  cursor: pointer;
-  background-color: #2c3e50;
+
+/* ─────────────────────────── control face ─────────────────────────── */
+
+/*
+ * The lower half of the disc. It is a flex column so the readout, the
+ * status line and the control row stack in order — the previous version
+ * absolutely positioned each piece by percentage, which left no way to add
+ * a caption without pushing something off the bottom of the circle.
+ */
+.game-controls {
+  height: 48%;
+  width: 100%;
+  border-top: 0.5vh solid var(--ui-case, #0a1e30);
   position: absolute;
-  top: 60%;
-  left: 40%;
-  border-radius: 5px;
+  bottom: 0;
+  left: 0;
+  border-radius: 0 0 500px 500px;
+  background-color: var(--ui-face, #1d3b53);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7vh;
+  padding-top: 0.6vh;
+  overflow: hidden;
 }
-.game-switch * {
+
+/* Power lamp. */
+.game-light {
+  height: 20%;
+  width: 10%;
+  border: 0.33vh solid var(--ui-case, #0a1e30);
+  border-radius: 50%;
+  position: absolute;
+  left: 65%;
+  top: 55%;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/*
+ * A lit lamp needs to actually glow on a dark console. The coloured bloom is
+ * doing the work a bright fill alone can't — without it, "on" and "off" are
+ * just two similarly-sized dots.
+ */
+.game-light-on {
+  background-color: var(--ui-light-on, #c3e88d);
+  box-shadow: 0 0 1.4vh var(--ui-light-on, #c3e88d);
+}
+
+.game-light-off {
+  background-color: var(--ui-light-dim, rgba(240, 113, 120, 0.35));
+  box-shadow: none;
+}
+
+/*
+ * Control cluster. Laid out as a row of labelled controls rather than three
+ * absolutely-positioned dots, so each one can carry a caption underneath
+ * without hand-placing it.
+ */
+/*
+ * Equal-width columns rather than a centred flex row. The controls are not
+ * the same width — the colour button carries a label and the lamp does not —
+ * so centring the row put the switch off the disc's axis, sitting visibly
+ * right of the readout above it. Three equal tracks centre the middle one
+ * regardless of what the outer two measure.
+ */
+.control-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  justify-items: center;
+  align-items: start;
+  width: 100%;
+  max-width: 21vh;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5vh;
   overflow: visible;
 }
-.game-switch div {
+
+.control-label {
+  font-size: 1vh;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-text-muted, #7e8e94);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.control-start .control-label {
+  color: var(--ui-text-primary, #d6deeb);
+}
+
+/* Power lamp. */
+.game-light {
+  height: 2.2vh;
+  width: 2.2vh;
+  border: 0.3vh solid var(--ui-case, #0a1e30);
+  border-radius: 50%;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/*
+ * A lit lamp needs to actually glow on a dark console. The coloured bloom is
+ * doing the work a bright fill alone cannot — without it, "on" and "off" are
+ * just two similarly-sized dots.
+ */
+.game-light-on {
+  background-color: var(--ui-light-on, #c3e88d);
+  box-shadow: 0 0 1.4vh var(--ui-light-on, #c3e88d);
+}
+
+.game-light-off {
+  background-color: var(--ui-light-dim, rgba(240, 113, 120, 0.35));
+  box-shadow: none;
+}
+
+/* Cycle-colours button. */
+.game-reset {
+  height: 2.2vh;
+  width: 2.2vh;
+  padding: 0;
+  background-color: var(--ui-reset-button, #f07178);
+  border-radius: 50%;
+  border: 0.3vh solid var(--ui-case, #0a1e30);
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-reset:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 1.2vh var(--ui-reset-button, #f07178);
+}
+
+.game-reset:focus-visible,
+.game-switch:focus-visible {
+  outline: 0.3vh solid var(--ui-text-primary, #d6deeb);
+  outline-offset: 0.3vh;
+}
+
+/*
+ * Start / stop switch.
+ *
+ * Sized in vh so the toggle's travel is a fixed proportion of the track. It
+ * used to be a percentage-width track holding a vh-sized knob translated by a
+ * percentage of its own width, which worked out to barely over one knob-width
+ * of movement — the switch never visibly reached the "on" end.
+ */
+.game-switch {
+  --track-w: 6.4vh;
+  --knob-inset: 0.3vh;
+
+  width: var(--track-w);
+  height: 3.2vh;
+  padding: var(--knob-inset);
+  cursor: pointer;
+  background-color: var(--ui-switch-track, #0a1e30);
+  border: 0.2vh solid var(--ui-edge, rgba(214, 222, 235, 0.18));
+  border-radius: 0.6vh;
+  position: relative;
+  overflow: visible;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/*
+ * While the game is off the switch is the only thing worth touching, so it
+ * breathes. Stops the moment a game is running.
+ */
+.game-switch.idle {
+  animation: switch-attention 1.9s ease-in-out infinite;
+}
+
+@keyframes switch-attention {
+  0%, 100% {
+    border-color: var(--ui-edge, rgba(214, 222, 235, 0.18));
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    border-color: var(--ui-accent-link, #82aaff);
+    box-shadow: 0 0 1.4vh var(--ui-accent-link, #82aaff);
+  }
+}
+
+.game-switch.on {
+  border-color: var(--ui-light-on, #c3e88d);
+}
+
+/*
+ * The knob is exactly half the track's inner width and sits in normal flow,
+ * so "all the way over" is a translate of exactly its own width. No absolute
+ * positioning and no arithmetic against borders or insets — the earlier
+ * versions tried to derive the travel by hand and consistently came up
+ * short, leaving the switch visually stuck near the "off" end.
+ */
+.game-switch-toggle {
+  border-radius: 0.4vh;
+  background: var(--ui-switch-toggle, #d6deeb);
   display: block;
+  width: 50%;
+  height: 100%;
+  transform: translateX(0);
+  transition: transform 0.16s ease-in-out;
 }
-.game-switch span {
-  display: none;
+
+.game-switch-toggle.on {
+  transform: translateX(100%);
 }
-.game-switch div.game-switch-toggle {
-  transform: translateY(10%);
-  border-radius: 2px;
-  background: #bdc3c7;
-  display: inline-block;
-  height: 2.5vh;
-  width: 2.5vh;
-  position: absolute;
-  left: 5%;
-  top: 10%;
+
+@media (prefers-reduced-motion: reduce) {
+  .game-switch-toggle {
+    transition: none;
+  }
+  .game-switch.idle {
+    animation: none;
+    border-color: var(--ui-accent-link, #82aaff);
+  }
 }
-.game-slider {
-  height: 80%;
-  width: 40%;
-  background-color: #7f8c8d;
-  position: absolute;
-  top: 10%;
-  border-radius: 2px;
-}
+
+/* ─────────────────────────── score LCD ─────────────────────────── */
+
 .game-score {
-  height: 40%;
-  width: 30%;
-  border-radius: 5px;
-  position: absolute;
-  top: 1vh;
-  left: 35%;
-  background-color: #7f8c8d;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 0.5vh;
 }
-.game-score span {
-  height: 90%;
-  width: 91.5%;
-  color: #7f8c8d;
-  font-family: Digital;
-  background-color: #2c3e50;
+
+/*
+ * Running commentary under the readout. A board that has gone quiet because
+ * it is replaying looks identical to one that is broken; this is the line
+ * that tells them apart.
+ */
+.game-status {
+  font-size: 1.2vh;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.game-status-idle { color: var(--ui-accent-link, #82aaff); }
+.game-status-replay { color: var(--ui-screen-on, #7fdbca); }
+.game-status-turn { color: var(--ui-text-primary, #d6deeb); }
+.game-status-fail { color: var(--ui-light-off, #f07178); }
+
+.game-screen {
+  min-width: 9vh;
+  padding: 0.4vh 1vh;
+  border: 0.25vh solid var(--ui-case, #0a1e30);
+  box-shadow: inset 0 0.2vh 0.5vh var(--ui-inset, rgba(1, 14, 24, 0.85));
+  font-family: Digital, monospace;
+  background-color: var(--ui-screen, #010e18);
   padding: 0.5vh;
   text-align: center;
-  vertical-align: middle;
-  font-size: 6vh;
+  font-size: 4.8vh;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 3px;
+  position: relative;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+  animation: screen-wake 900ms steps(1, end) 460ms both;
 }
-.game-score span.game-light-off {
-  color: #7f8c8d;
+
+/*
+ * Unlit segments. A real seven-segment display shows its dormant segments
+ * faintly; without them the panel reads as an empty slot rather than a screen
+ * that's on. Stacked exactly under the live value.
+ */
+.screen-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-screen-off, rgba(127, 219, 202, 0.09));
+  pointer-events: none;
 }
-.game-score span.game-light-on {
-  color: #e74c3c;
+
+.screen-value {
+  position: relative;
 }
-.game-light-off {
-  background-color: #e74c3c;
+
+.screen-on .screen-value {
+  color: var(--ui-screen-on, #7fdbca);
+  text-shadow: 0 0 1.2vh var(--ui-screen-on, #7fdbca);
 }
-.game-light-on {
-  background-color: #2ecc71;
+
+/*
+ * Idle, not dead. The display stays legible between games — it's a panel
+ * that's powered on showing a resting value, not a switched-off slab.
+ */
+.screen-off .screen-value {
+  color: var(--ui-screen-idle, #9db2c0);
+  text-shadow: none;
+}
+
+/* ─────────────────────────── feedback ─────────────────────────── */
+
+/*
+ * A lit pad lifts slightly. The old "shrink" class pushed it *away* on
+ * press, which reads as the board receding from you rather than responding.
+ */
+.button.lit {
+  transform: scale(1.015);
+  transition: transform 0.12s ease-out;
+}
+
+/*
+ * Fail cue. The board desaturates and dims for a beat while the buzz plays
+ * and the final score holds, instead of the score blinking to zero the
+ * instant a wrong pad is hit.
+ */
+.App.is-failing .container {
+  animation: fail-shake 0.4s ease-in-out;
+}
+
+.App.is-failing .button {
+  filter: saturate(0.25) brightness(0.55);
+  transition: filter 0.25s ease;
+}
+
+@keyframes fail-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-0.8vh); }
+  45% { transform: translateX(0.7vh); }
+  70% { transform: translateX(-0.4vh); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .App.is-failing .container {
+    animation: none;
+  }
+  .button.lit {
+    transition: none;
+  }
+}
+
+/* ─────────────────────── github attribution ─────────────────────── */
+
+/*
+ * Fixed link in the bottom-right corner pointing to the source repository.
+ * Same badge as react-connect4 wears, so the two projects read as a set.
+ *
+ * The console is a fixed-size disc centred in the viewport, so the badge has
+ * the corner to itself and doesn't need to hide on narrow screens.
+ */
+.github-attribution {
+  position: fixed;
+  bottom: 0.85rem;
+  right: 1rem;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--ui-chip-fill, rgba(19, 42, 62, 0.92));
+  color: var(--no-text-secondary, #9db2c0);
+  border: 1px solid var(--ui-chip-border, rgba(214, 222, 235, 0.18));
+  border-radius: 999px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: 0 2px 8px var(--ui-shadow-soft, rgba(1, 14, 24, 0.45));
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.github-attribution:hover {
+  background: var(--ui-chip-hover, #1d3b53);
+  color: var(--ui-accent-link, #82aaff);
+  border-color: var(--ui-accent-link-dim, #4976a1);
+}
+
+.github-attribution:focus-visible {
+  outline: 2px solid var(--ui-focus-ring, #82aaff);
+  outline-offset: 2px;
+}
+
+.github-attribution-icon {
+  line-height: 1;
+  flex-shrink: 0;
 }

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+    <!--
+      Night Owl base tone. Tints the mobile browser chrome and tells the UA to
+      render native controls dark, so nothing light frames the app. Keep in
+      sync with colors.background.base in src/theme.js.
+    -->
+    <meta name="theme-color" content="#011627" />
+    <meta name="color-scheme" content="dark" />
+
+    <meta
+      name="description"
+      content="A web-based rendition of Hasbro's Simon — watch the sequence, then repeat it back as it grows a step longer each round."
+    />
+
+    <!--
+      Social preview. 1200x630 is the Open Graph standard; declaring the
+      dimensions lets scrapers reserve the right box before the image loads.
+      Regenerate public/simon-says.png whenever the console's look changes —
+      it's key art built from the running app, not a stock asset.
+    -->
+    <meta property="og:title" content="Simon Says" />
+    <meta
+      property="og:description"
+      content="Watch the sequence, then repeat it back as it grows a step longer each round."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://dangervalentine.github.io/react-redux-simon-says/" />
+    <meta
+      property="og:image"
+      content="https://raw.githubusercontent.com/dangervalentine/react-redux-simon-says/refs/heads/master/public/simon-says.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Simon Says title art: the wordmark beside a dark circular console with four coral, amber, mint and violet pads around a lit centre dial."
+    />
+
+    <title>Simon Says</title>
+  </head>
+  <body>
+    <div id="root">
+      <noscript>You need to enable JavaScript to run this app.</noscript>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

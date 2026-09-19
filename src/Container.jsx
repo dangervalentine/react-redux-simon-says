@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import Button from './components/Button';
 import Controls from './components/Controls';
+import Header from './components/Header';
 import GithubAttribution from './components/GithubAttribution';
 import { FAIL_TONE, ROUND_TONE, playTone, primeAudio } from './audio';
 import { delay } from './helpers';
@@ -122,31 +123,35 @@ const Container = () => {
 
   return (
     <div className={`App${isFailing ? ' is-failing' : ''}`}>
-      <div className="container">
-        {colorSchemes[colorScheme].map((padColor, index) => (
-          <Button
-            key={index}
-            ref={(el) => {
-              padRefs.current[index] = el;
-            }}
-            index={index}
-            color={padColor}
-            isPlaying={isPlaying}
-            inputPause={inputPause}
-            onPress={buttonPress}
-          />
-        ))}
+      <Header />
 
-        <Controls
-          score={score}
-          hScore={hScore}
-          isPlaying={isPlaying}
-          isReplaying={isReplaying}
-          isFailing={isFailing}
-          startGame={startGame}
-          changeColorScheme={changeColorScheme}
-        />
-      </div>
+      <main className="stage">
+        <div className="container">
+          {colorSchemes[colorScheme].map((padColor, index) => (
+            <Button
+              key={index}
+              ref={(el) => {
+                padRefs.current[index] = el;
+              }}
+              index={index}
+              color={padColor}
+              isPlaying={isPlaying}
+              inputPause={inputPause}
+              onPress={buttonPress}
+            />
+          ))}
+
+          <Controls
+            score={score}
+            hScore={hScore}
+            isPlaying={isPlaying}
+            isReplaying={isReplaying}
+            isFailing={isFailing}
+            startGame={startGame}
+            changeColorScheme={changeColorScheme}
+          />
+        </div>
+      </main>
 
       <GithubAttribution />
     </div>

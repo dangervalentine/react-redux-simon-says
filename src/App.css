@@ -118,11 +118,150 @@ body {
   user-select: none;
 }
 
+/* ─────────────────────────── the app bar ─────────────────────────── */
+
+/*
+ * Mark, then wordmark and credit, hard against the left edge — the same bar
+ * the sibling projects wear. `flex-start` and source order are the whole
+ * layout: nothing is pushed to the right, at any width, so the mark stays
+ * left of the name on a phone exactly as it does on a desktop.
+ *
+ * The height is fixed, not content-derived: --u subtracts it to work out how
+ * much room the console has, so a bar that could grow by a pixel would put
+ * the board a pixel over the fold. 50px logo + 5px above + 10px below.
+ */
+.app-header {
+  flex: none;
+  height: var(--header-h);
+  width: 100%;
+  padding: 5px 12px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  background-color: var(--ui-case, #0a1e30);
+  border-bottom: 1px solid var(--ui-edge, rgba(214, 222, 235, 0.18));
+}
+
+.logo {
+  display: inline-block;
+  height: 50px;
+  width: 50px;
+}
+
+.header-text {
+  margin: 0 10px;
+}
+
+.header-text p {
+  margin-block-start: 0;
+  margin-block-end: 0;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-family: 'Lilita One', sans-serif;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+  color: var(--ui-text-primary, #d6deeb);
+}
+
+.credit {
+  font-size: 0.7rem;
+  color: var(--no-text-secondary, #9db2c0);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.credit:hover {
+  color: var(--ui-text-primary, #d6deeb);
+}
+
+.credit:focus-visible {
+  outline: 2px solid var(--ui-focus-ring, #82aaff);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 /* ─────────────────────────── the console ─────────────────────────── */
 
+/*
+ * Scale
+ * -----
+ * Every dimension in this file — pad, disc, readout, hairline, glow radius —
+ * is a multiple of `--u`, one hundredth of the console's diameter. Nothing
+ * below is sized against the viewport directly, so the whole device scales as
+ * one object and its proportions can't drift between screens.
+ *
+ * `--u` itself is the only place the viewport is consulted, and it takes the
+ * smaller of the two axes: 1svh while the screen is wider than it is tall,
+ * and a share of the width once it isn't. That min() is what keeps the disc
+ * inside the viewport on a phone — sized purely in vh, a 75vh-wide circle
+ * overflows any portrait screen and the right-hand pads run off the edge.
+ *
+ * The width term is 1.2vw rather than 1vw so a portrait console fills 90% of
+ * the width instead of 75%. 1.2 is the largest it can be and still fit: the
+ * stage pads the console by 4u a side, so 75u + 8u has to stay under 100vw.
+ *
+ * The height term measures what's left under the header rather than the whole
+ * viewport, which is why the header is given a fixed `--header-h` instead of
+ * being left to size itself. A self-sizing bar can't be subtracted in CSS,
+ * and the console would be laid out against a height that doesn't exist.
+ *
+ * svh, not vh: on mobile, vh measures the viewport with the browser's UI
+ * retracted, so a vh-sized board sits partly under the address bar until you
+ * scroll. svh is the always-visible height, and unlike dvh it doesn't change
+ * as that bar shows and hides, so the console never resizes mid-game.
+ */
+:root {
+  /* 50px logo + the header's 5px / 10px padding. */
+  --header-h: 65px;
+  --u: min(calc((100svh - var(--header-h)) / 100), 1.2vw);
+}
+
+@supports not (height: 1svh) {
+  :root {
+    --u: min(calc((100vh - var(--header-h)) / 100), 1.2vw);
+  }
+}
+
+/*
+ * Header on top, console in what remains. The stage takes the leftover height
+ * with `flex: 1` and `min-height: 0` — without the latter a flex child refuses
+ * to shrink below its content, which would push the console's own box past the
+ * bottom of the screen rather than centring it in the space available.
+ */
+.App {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+@supports not (height: 1svh) {
+  .App {
+    min-height: 100vh;
+  }
+}
+
+/*
+ * The console is centred by the page rather than by its own margins. The old
+ * `margin: 10vh auto` centred it horizontally only by accident of the box
+ * being narrower than the page — which stops being true the moment the width
+ * axis is the constraining one. Flex centring holds on both axes at any
+ * aspect ratio, and the padding guarantees the rim glow never touches an edge.
+ */
+.stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(4 * var(--u));
+}
+
 .container {
-  height: 75vh;
-  width: 75vh;
+  height: calc(75 * var(--u));
+  width: calc(75 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -130,8 +269,9 @@ body {
   flex-direction: row;
   background-color: var(--ui-case, #0a1e30);
   position: relative;
-  margin: 10vh auto;
-  padding: 2vh;
+  /* Fixed size: never let the flex parent squeeze the circle into an oval. */
+  flex: none;
+  padding: calc(2 * var(--u));
   overflow: hidden;
   border-radius: 50%;
   animation: console-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -141,8 +281,8 @@ body {
    * moulded edge catching the room.
    */
   box-shadow:
-    0 0 0 0.4vh var(--ui-rim, rgba(214, 222, 235, 0.1)),
-    0 2vh 6vh var(--no-background-floor, #010e18);
+    0 0 0 calc(0.4 * var(--u)) var(--ui-rim, rgba(214, 222, 235, 0.1)),
+    0 calc(2 * var(--u)) calc(6 * var(--u)) var(--no-background-floor, #010e18);
 }
 
 /*
@@ -168,10 +308,10 @@ body {
  * sources of truth for the same four values.
  */
 .button {
-  height: 33.8vh;
-  width: 33.5vh;
+  height: calc(33.8 * var(--u));
+  width: calc(33.5 * var(--u));
   box-sizing: border-box;
-  margin: 1vh;
+  margin: calc(1 * var(--u));
   display: inline-block;
   overflow: hidden;
   padding: 0;
@@ -192,8 +332,8 @@ body {
 }
 
 .button:focus-visible {
-  outline: 0.4vh solid var(--ui-text-primary, #d6deeb);
-  outline-offset: -0.8vh;
+  outline: calc(0.4 * var(--u)) solid var(--ui-text-primary, #d6deeb);
+  outline-offset: calc(-0.8 * var(--u));
 }
 
 .overlay {
@@ -280,7 +420,7 @@ body {
 .controls {
   height: 50%;
   width: 50%;
-  border: 2vh solid var(--ui-case, #0a1e30);
+  border: calc(2 * var(--u)) solid var(--ui-case, #0a1e30);
   position: absolute;
   border-radius: 50%;
   top: 50%;
@@ -295,8 +435,8 @@ body {
    * bounce that stops the disc reading as a flat hole.
    */
   box-shadow:
-    inset 0 0.7vh 1.6vh var(--ui-inset, rgba(1, 14, 24, 0.85)),
-    inset 0 -0.3vh 0.6vh var(--ui-rim, rgba(214, 222, 235, 0.1));
+    inset 0 calc(0.7 * var(--u)) calc(1.6 * var(--u)) var(--ui-inset, rgba(1, 14, 24, 0.85)),
+    inset 0 calc(-0.3 * var(--u)) calc(0.6 * var(--u)) var(--ui-rim, rgba(214, 222, 235, 0.1));
   animation: disc-in 420ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
 }
 
@@ -339,8 +479,8 @@ body {
  * who doesn't.
  */
 .game-name .name {
-  font-size: 7vh;
-  margin-top: 2vh;
+  font-size: calc(7 * var(--u));
+  margin-top: calc(2 * var(--u));
   position: absolute;
   top: 15%;
   /* Sits above .game-name's own negative z-index so the press lands. */
@@ -360,16 +500,16 @@ body {
 
 .game-name .name:hover,
 .game-name .name:focus-visible {
-  transform: translateY(-0.35vh) scale(1.03);
+  transform: translateY(calc(-0.35 * var(--u))) scale(1.03);
   color: var(--no-neutral-white, #ffffff);
   letter-spacing: 0.05em;
-  text-shadow: 0 0 1.6vh var(--ui-screen-on, #7fdbca);
+  text-shadow: 0 0 calc(1.6 * var(--u)) var(--ui-screen-on, #7fdbca);
 }
 
 .game-name .name:focus-visible {
-  outline: 0.3vh solid var(--ui-screen-on, #7fdbca);
-  outline-offset: 0.6vh;
-  border-radius: 0.6vh;
+  outline: calc(0.3 * var(--u)) solid var(--ui-screen-on, #7fdbca);
+  outline-offset: calc(0.6 * var(--u));
+  border-radius: calc(0.6 * var(--u));
 }
 
 .game-name .name:active {
@@ -405,7 +545,7 @@ body {
 .game-controls {
   height: 48%;
   width: 100%;
-  border-top: 0.5vh solid var(--ui-case, #0a1e30);
+  border-top: calc(0.5 * var(--u)) solid var(--ui-case, #0a1e30);
   position: absolute;
   bottom: 0;
   left: 0;
@@ -414,8 +554,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.55vh;
-  padding-top: 0.4vh;
+  gap: calc(0.55 * var(--u));
+  padding-top: calc(0.4 * var(--u));
   overflow: hidden;
 }
 
@@ -423,7 +563,7 @@ body {
 .game-light {
   height: 20%;
   width: 10%;
-  border: 0.33vh solid var(--ui-case, #0a1e30);
+  border: calc(0.33 * var(--u)) solid var(--ui-case, #0a1e30);
   border-radius: 50%;
   position: absolute;
   left: 65%;
@@ -438,7 +578,7 @@ body {
  */
 .game-light-on {
   background-color: var(--ui-light-on, #c3e88d);
-  box-shadow: 0 0 1.4vh var(--ui-light-on, #c3e88d);
+  box-shadow: 0 0 calc(1.4 * var(--u)) var(--ui-light-on, #c3e88d);
 }
 
 .game-light-off {
@@ -464,19 +604,19 @@ body {
   justify-items: center;
   align-items: start;
   width: 100%;
-  max-width: 21vh;
+  max-width: calc(21 * var(--u));
 }
 
 .control {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5vh;
+  gap: calc(0.5 * var(--u));
   overflow: visible;
 }
 
 .control-label {
-  font-size: 1vh;
+  font-size: calc(1 * var(--u));
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ui-text-muted, #7e8e94);
@@ -490,9 +630,9 @@ body {
 
 /* Power lamp. */
 .game-light {
-  height: 2.2vh;
-  width: 2.2vh;
-  border: 0.3vh solid var(--ui-case, #0a1e30);
+  height: calc(2.2 * var(--u));
+  width: calc(2.2 * var(--u));
+  border: calc(0.3 * var(--u)) solid var(--ui-case, #0a1e30);
   border-radius: 50%;
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -504,7 +644,7 @@ body {
  */
 .game-light-on {
   background-color: var(--ui-light-on, #c3e88d);
-  box-shadow: 0 0 1.4vh var(--ui-light-on, #c3e88d);
+  box-shadow: 0 0 calc(1.4 * var(--u)) var(--ui-light-on, #c3e88d);
 }
 
 .game-light-off {
@@ -514,25 +654,25 @@ body {
 
 /* Cycle-colours button. */
 .game-reset {
-  height: 2.2vh;
-  width: 2.2vh;
+  height: calc(2.2 * var(--u));
+  width: calc(2.2 * var(--u));
   padding: 0;
   background-color: var(--ui-reset-button, #f07178);
   border-radius: 50%;
-  border: 0.3vh solid var(--ui-case, #0a1e30);
+  border: calc(0.3 * var(--u)) solid var(--ui-case, #0a1e30);
   cursor: pointer;
   transition: filter 0.15s ease, box-shadow 0.15s ease;
 }
 
 .game-reset:hover {
   filter: brightness(1.15);
-  box-shadow: 0 0 1.2vh var(--ui-reset-button, #f07178);
+  box-shadow: 0 0 calc(1.2 * var(--u)) var(--ui-reset-button, #f07178);
 }
 
 .game-reset:focus-visible,
 .game-switch:focus-visible {
-  outline: 0.3vh solid var(--ui-text-primary, #d6deeb);
-  outline-offset: 0.3vh;
+  outline: calc(0.3 * var(--u)) solid var(--ui-text-primary, #d6deeb);
+  outline-offset: calc(0.3 * var(--u));
 }
 
 /*
@@ -544,16 +684,16 @@ body {
  * of movement — the switch never visibly reached the "on" end.
  */
 .game-switch {
-  --track-w: 6.4vh;
-  --knob-inset: 0.3vh;
+  --track-w: calc(6.4 * var(--u));
+  --knob-inset: calc(0.3 * var(--u));
 
   width: var(--track-w);
-  height: 3.2vh;
+  height: calc(3.2 * var(--u));
   padding: var(--knob-inset);
   cursor: pointer;
   background-color: var(--ui-switch-track, #0a1e30);
-  border: 0.2vh solid var(--ui-edge, rgba(214, 222, 235, 0.18));
-  border-radius: 0.6vh;
+  border: calc(0.2 * var(--u)) solid var(--ui-edge, rgba(214, 222, 235, 0.18));
+  border-radius: calc(0.6 * var(--u));
   position: relative;
   overflow: visible;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -574,7 +714,7 @@ body {
   }
   50% {
     border-color: var(--ui-accent-link, #82aaff);
-    box-shadow: 0 0 1.4vh var(--ui-accent-link, #82aaff);
+    box-shadow: 0 0 calc(1.4 * var(--u)) var(--ui-accent-link, #82aaff);
   }
 }
 
@@ -590,7 +730,7 @@ body {
  * short, leaving the switch visually stuck near the "off" end.
  */
 .game-switch-toggle {
-  border-radius: 0.4vh;
+  border-radius: calc(0.4 * var(--u));
   background: var(--ui-switch-toggle, #d6deeb);
   display: block;
   width: 50%;
@@ -619,7 +759,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35vh;
+  gap: calc(0.35 * var(--u));
 }
 
 /*
@@ -634,7 +774,7 @@ body {
  * that tells them apart.
  */
 .game-status {
-  font-size: 1.2vh;
+  font-size: calc(1.2 * var(--u));
   letter-spacing: 0.16em;
   text-transform: uppercase;
   line-height: 1;
@@ -648,10 +788,10 @@ body {
 .game-status-fail { color: var(--ui-light-off, #f07178); }
 
 .game-screen {
-  min-width: 9.6vh;
-  padding: 0.5vh 1vh 0.6vh;
-  border: 0.25vh solid var(--ui-case, #0a1e30);
-  box-shadow: inset 0 0.2vh 0.5vh var(--ui-inset, rgba(1, 14, 24, 0.85));
+  min-width: calc(9.6 * var(--u));
+  padding: calc(0.5 * var(--u)) calc(1 * var(--u)) calc(0.6 * var(--u));
+  border: calc(0.25 * var(--u)) solid var(--ui-case, #0a1e30);
+  box-shadow: inset 0 calc(0.2 * var(--u)) calc(0.5 * var(--u)) var(--ui-inset, rgba(1, 14, 24, 0.85));
   font-family: Digital, monospace;
   background-color: var(--ui-screen, #010e18);
   text-align: center;
@@ -659,7 +799,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2vh;
+  gap: calc(0.2 * var(--u));
   border-radius: 3px;
   position: relative;
   transition: color 0.2s ease, text-shadow 0.2s ease;
@@ -673,7 +813,7 @@ body {
  * against the dark panel.
  */
 .screen-hi {
-  font-size: 1.4vh;
+  font-size: calc(1.4 * var(--u));
   letter-spacing: 0.1em;
   line-height: 1;
   color: var(--ui-screen-off-text, #33565e);
@@ -685,7 +825,7 @@ body {
 /* Catching the record mid-run is worth saying out loud. */
 .screen-hi-matched {
   color: var(--ui-screen-on, #7fdbca);
-  text-shadow: 0 0 0.9vh var(--ui-screen-on, #7fdbca);
+  text-shadow: 0 0 calc(0.9 * var(--u)) var(--ui-screen-on, #7fdbca);
 }
 
 /* Positioning context for the ghost segments behind the live score. */
@@ -694,7 +834,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 4.2vh;
+  font-size: calc(4.2 * var(--u));
   line-height: 1;
 }
 
@@ -719,7 +859,7 @@ body {
 
 .screen-on .screen-value {
   color: var(--ui-screen-on, #7fdbca);
-  text-shadow: 0 0 1.2vh var(--ui-screen-on, #7fdbca);
+  text-shadow: 0 0 calc(1.2 * var(--u)) var(--ui-screen-on, #7fdbca);
 }
 
 /*
@@ -758,9 +898,9 @@ body {
 
 @keyframes fail-shake {
   0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-0.8vh); }
-  45% { transform: translateX(0.7vh); }
-  70% { transform: translateX(-0.4vh); }
+  20% { transform: translateX(calc(-0.8 * var(--u))); }
+  45% { transform: translateX(calc(0.7 * var(--u))); }
+  70% { transform: translateX(calc(-0.4 * var(--u))); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -817,4 +957,22 @@ body {
 .github-attribution-icon {
   line-height: 1;
   flex-shrink: 0;
+}
+
+/* ─────────────────────────── narrow screens ─────────────────────────── */
+
+/*
+ * Only the type changes. The order doesn't: the mark stays left of the name.
+ *
+ * Nothing here changes the header's height either — the logo still governs
+ * it, and --u is computed from it.
+ */
+@media (max-width: 800px) {
+  .header-text {
+    margin: 0 0 0 10px;
+  }
+
+  .header-text p {
+    font-size: 0.8rem;
+  }
 }

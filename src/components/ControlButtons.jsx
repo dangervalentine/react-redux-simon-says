@@ -37,6 +37,7 @@ const ControlButtons = ({ isPlaying, startGame, changeColorScheme }) => (
         onClick={startGame}
         aria-pressed={isPlaying}
         aria-label={isPlaying ? 'Stop game' : 'Start game'}
+        aria-keyshortcuts={isPlaying ? undefined : 'Space Enter'}
       >
         <span className={`game-switch-toggle${isPlaying ? ' on' : ''}`} />
       </button>

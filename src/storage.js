@@ -28,3 +28,29 @@ export const saveHighScore = (value) => {
     /* nothing useful to do — the session's score still shows */
   }
 };
+
+const TIPS_KEY = 'simon-says:keyboard-tips';
+
+/**
+ * Keyboard tips preference. 'auto' (the default) shows them while the player
+ * is using the keyboard; 'on' and 'off' are what the toggle pins them to.
+ */
+const TIPS_MODES = ['auto', 'on', 'off'];
+
+export const loadTipsMode = () => {
+  try {
+    const stored = window.localStorage.getItem(TIPS_KEY);
+    return TIPS_MODES.includes(stored) ? stored : 'auto';
+  } catch {
+    return 'auto';
+  }
+};
+
+export const saveTipsMode = (mode) => {
+  if (!TIPS_MODES.includes(mode)) return;
+  try {
+    window.localStorage.setItem(TIPS_KEY, mode);
+  } catch {
+    /* the toggle still works for this session */
+  }
+};

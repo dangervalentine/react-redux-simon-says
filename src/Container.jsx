@@ -5,10 +5,13 @@ import Button from './components/Button';
 import Controls from './components/Controls';
 import Header from './components/Header';
 import GithubAttribution from './components/GithubAttribution';
+import KeyboardTips from './components/KeyboardTips';
+import { loadTipsMode, saveTipsMode } from './storage';
 import { FAIL_TONE, ROUND_TONE, playTone, primeAudio } from './audio';
 import { delay } from './helpers';
 import {
   FAIL_HOLD_MS,
+  FAIL_VIBRATION,
   PAD_LIT_MS,
   PLAYBACK_GAP_MS,
   PLAYBACK_LEAD_MS,
@@ -54,6 +57,73 @@ const Container = () => {
     (index) => dispatch(actionCreators.buttonPress(index)),
     [dispatch],
   );
+
+  // ── keyboard tips ──
+  //
+  // 'auto' shows the tips while the player is on the keyboard and hides them
+  // once they touch the mouse or screen; the toggle (or `?`) pins them on or
+  // off, and that choice is remembered.
+  const [tipsMode, setTipsMode] = useState(loadTipsMode);
+  const [usingKeyboard, setUsingKeyboard] = useState(false);
+  const showTips =
+    tipsMode === 'on' || (tipsMode === 'auto' && usingKeyboard);
+
+  const toggleTips = useCallback(() => {
+    const next = showTips ? 'off' : 'on';
+    setTipsMode(next);
+    saveTipsMode(next);
+  }, [showTips]);
+
+  useEffect(() => {
+    // Clicking the toggle itself mustn't count as "went back to the mouse",
+    // or auto mode would hide the card a beat before the click pins it.
+    const onPointerDown = (e) => {
+      if (e.target.closest?.('.keyboard-tips')) return;
+      setUsingKeyboard(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+
+  // ── keyboard controls ──
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      setUsingKeyboard(true);
+
+      if (e.key === '?') {
+        e.preventDefault();
+        toggleTips();
+        return;
+      }
+
+      // 1-4 press the pads in reading order. `code` rather than `key` so the
+      // top row works on layouts where it types symbols unshifted (AZERTY).
+      const digit = /^(?:Digit|Numpad)([1-4])$/.exec(e.code);
+      if (digit) {
+        e.preventDefault();
+        // A held key auto-repeats; one keystroke is one press.
+        if (!e.repeat) padRefs.current[Number(digit[1]) - 1]?.press();
+        return;
+      }
+
+      if (e.key === ' ' || e.key === 'Enter') {
+        // Only while idle, and not mid fail-cue: the pending reset would end
+        // the new game a second after it began.
+        if (isPlaying || isFailing || e.repeat) return;
+        // A focused button or link already acts on Space/Enter by itself,
+        // so leave those alone. Pads are the exception — idle, they ignore
+        // presses, so Space on a pad left focused after a loss starts a game.
+        const target = e.target;
+        const control = target.closest?.('button, a, input, select, textarea');
+        if (control && !control.classList.contains('button')) return;
+        e.preventDefault();
+        startGame();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isPlaying, isFailing, startGame, toggleTips]);
 
   // ── replay the sequence ──
   useEffect(() => {
@@ -105,7 +175,13 @@ const Container = () => {
     }
 
     let cancelled = false;
-    playTone(FAIL_TONE, { volume: 0.5 });
+    // Level is baked into the sample: the original was a full-scale square
+    // wave that startled people even turned down here, so the file itself
+    // was low-passed and dropped to sit well under the pad tones.
+    playTone(FAIL_TONE);
+    // Haptic bump in place of the old board shake. Optional chaining because
+    // support is patchy — iOS Safari and desktop browsers have no vibrate().
+    navigator.vibrate?.(FAIL_VIBRATION);
     setIsReplaying(false);
     setIsFailing(true);
 
@@ -122,7 +198,7 @@ const Container = () => {
   }, [lastEvent, dispatch]);
 
   return (
-    <div className={`App${isFailing ? ' is-failing' : ''}`}>
+    <div className={`App${showTips ? ' tips-on' : ''}`}>
       <Header />
 
       <main className="stage">
@@ -153,6 +229,7 @@ const Container = () => {
         </div>
       </main>
 
+      <KeyboardTips visible={showTips} onToggle={toggleTips} />
       <GithubAttribution />
     </div>
   );

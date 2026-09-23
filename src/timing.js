@@ -18,11 +18,20 @@
 /** How long a pad stays lit, and how long its tone sounds. */
 export const PAD_LIT_MS = 320;
 
+/** How long a pad stays pushed in after the player presses it. */
+export const PAD_PRESS_MS = 160;
+
 /** Dark time between two pads during playback. */
 export const PLAYBACK_GAP_MS = 170;
 
 /** Beat before playback begins, so the player can settle. */
 export const PLAYBACK_LEAD_MS = 650;
+
+/**
+ * Haptic pattern for a loss, as navigator.vibrate() takes it: buzz, pause,
+ * buzz. Two short pulses read as "no"; one long one just reads as a buzz.
+ */
+export const FAIL_VIBRATION = [90, 70, 140];
 
 /** How long the fail cue holds the final score before the board resets. */
 export const FAIL_HOLD_MS = 1100;

@@ -116,6 +116,33 @@ body {
   -webkit-user-select: none;
   -moz-user-select: none;
   user-select: none;
+  /* No grey/blue flash over whatever a finger lands on. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * `manipulation` drops double-tap-to-zoom on controls, so the browser stops
+ * holding each tap ~300ms to see if a second is coming — a real problem in a
+ * game made of rapid taps on the same pad.
+ */
+button,
+a {
+  touch-action: manipulation;
+}
+
+/*
+ * One keyboard focus ring for every control on the console: a solid ring in
+ * the focus colour, held off the element so the dark surface shows through
+ * as a gap. :focus-visible only — mouse clicks and taps never draw it.
+ * The pads override this with an inset treatment of their own (see .button).
+ */
+button:focus-visible {
+  outline: calc(0.35 * var(--u)) solid var(--ui-focus-ring, #82aaff);
+  outline-offset: calc(0.4 * var(--u));
+}
+
+button:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* ─────────────────────────── the app bar ─────────────────────────── */
@@ -325,15 +352,69 @@ body {
    */
   --arc: rgba(0, 0, 0, 0.14);
   --arc-none: rgba(0, 0, 0, 0);
+  /*
+   * Pads rest dimmed, like the unlit plastic of a real Simon. A white wash
+   * over a pad already at full colour only ever read as a faint gradient; a
+   * pad that jumps from dim to over-bright is unmistakable. The fade out
+   * lives here and the fade in on .lit, so the light snaps on and eases off.
+   */
+  filter: brightness(0.8) saturate(0.85);
+  /*
+   * The scale timing is a variable so .pressed can change it without
+   * restating the whole transition list — .lit restates the list to snap
+   * the filter on, and a pad is lit for the entire press. Were the timing
+   * written out in both rules, whichever came last would win and the other
+   * state's easing would be lost (which is how the press ended up a snap).
+   */
+  --scale-timing: 260ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  transition:
+    filter 180ms ease-out,
+    scale var(--scale-timing);
 }
 
-.button:disabled {
+/*
+ * The player's press: the pad eases in toward the centre of the console
+ * (each quadrant's transform-origin is its inner corner, set below), then
+ * settles back out more slowly. This is the standalone `scale` property, not
+ * `transform` — pad-in fills `transform` with `both`, so a transform here
+ * would be overridden, and swapping `animation` would replay the entrance.
+ */
+.button.pressed {
+  scale: 0.99;
+  --scale-timing: 150ms ease-out;
+}
+
+/*
+ * Lit from behind, not washed over. The pad colours are already light
+ * pastels, so any brightness past 1 clips them toward white; the lift from
+ * the dimmed resting state is enough, and saturation carries the rest so the
+ * hue gets richer rather than paler.
+ */
+.button.lit {
+  filter: brightness(1) saturate(1.45);
+  transition:
+    filter 0ms,
+    scale var(--scale-timing);
+}
+
+.button[aria-disabled='true'] {
   cursor: default;
 }
 
+/*
+ * Pad focus. An outline can't do it: the pads are packed edge to edge inside
+ * a clipped circle, so an outer ring has nowhere to go, and any single colour
+ * vanishes against one pad or another — the light ring on the yellow pad, the
+ * blue focus colour on the blue one. Instead, three inset bands that follow
+ * the pad's own curve: dark, light, dark. One of the pair always contrasts.
+ * No transition, so it's there the moment Tab lands.
+ */
 .button:focus-visible {
-  outline: calc(0.4 * var(--u)) solid var(--ui-text-primary, #d6deeb);
-  outline-offset: calc(-0.8 * var(--u));
+  outline: none;
+  box-shadow:
+    inset 0 0 0 calc(0.45 * var(--u)) var(--ui-page, #011627),
+    inset 0 0 0 calc(1.05 * var(--u)) var(--ui-text-primary, #d6deeb),
+    inset 0 0 0 calc(1.5 * var(--u)) var(--ui-page, #011627);
 }
 
 .overlay {
@@ -341,22 +422,28 @@ body {
   width: 100%;
   height: 100%;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 180ms ease-out;
 }
 
 /*
- * Pad flash. Brighter than the light theme's version: the pads sit on a much
- * darker surround now, so a subtle white wash no longer reads as "this one
- * lit up" at a glance.
+ * Pad flash: a hot core on top of the pad's own brightening (see
+ * .button.lit). soft-light makes the white brighten the colour beneath
+ * instead of covering it. No transition on the way in — the onset is the
+ * signal.
  */
+.overlay {
+  mix-blend-mode: soft-light;
+}
+
 .overlay.on {
   background-image: radial-gradient(
     circle,
-    var(--ui-flash, rgba(255, 255, 255, 0.45)) 1%,
-    var(--ui-flash-fade, rgba(255, 255, 255, 0.06)) 70%,
-    var(--ui-flash-fade, rgba(255, 255, 255, 0.06)) 100%
+    var(--ui-flash, rgba(255, 255, 255, 0.55)) 1%,
+    var(--ui-flash-fade, rgba(255, 255, 255, 0)) 70%,
+    var(--ui-flash-fade, rgba(255, 255, 255, 0)) 100%
   );
   opacity: 1;
+  transition: none;
 }
 
 /*
@@ -498,23 +585,28 @@ body {
     color 0.22s ease, text-shadow 0.22s ease, letter-spacing 0.22s ease;
 }
 
-.game-name .name:hover,
+/*
+ * Hover and active only where there's a real pointer. On touch, :hover
+ * latches on after a tap and stays until you tap something else, so the
+ * wordmark would sit lifted and glowing after every poke.
+ */
+@media (hover: hover) {
+  .game-name .name:hover {
+    transform: translateY(calc(-0.35 * var(--u))) scale(1.03);
+    color: var(--no-neutral-white, #ffffff);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 calc(1.6 * var(--u)) var(--ui-screen-on, #7fdbca);
+  }
+
+  .game-name .name:active {
+    transform: translateY(0) scale(0.99);
+    transition-duration: 0.06s;
+  }
+}
+
 .game-name .name:focus-visible {
-  transform: translateY(calc(-0.35 * var(--u))) scale(1.03);
   color: var(--no-neutral-white, #ffffff);
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 calc(1.6 * var(--u)) var(--ui-screen-on, #7fdbca);
-}
-
-.game-name .name:focus-visible {
-  outline: calc(0.3 * var(--u)) solid var(--ui-screen-on, #7fdbca);
-  outline-offset: calc(0.6 * var(--u));
   border-radius: calc(0.6 * var(--u));
-}
-
-.game-name .name:active {
-  transform: translateY(0) scale(0.99);
-  transition-duration: 0.06s;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -664,15 +756,11 @@ body {
   transition: filter 0.15s ease, box-shadow 0.15s ease;
 }
 
-.game-reset:hover {
-  filter: brightness(1.15);
-  box-shadow: 0 0 calc(1.2 * var(--u)) var(--ui-reset-button, #f07178);
-}
-
-.game-reset:focus-visible,
-.game-switch:focus-visible {
-  outline: calc(0.3 * var(--u)) solid var(--ui-text-primary, #d6deeb);
-  outline-offset: calc(0.3 * var(--u));
+@media (hover: hover) {
+  .game-reset:hover {
+    filter: brightness(1.15);
+    box-shadow: 0 0 calc(1.2 * var(--u)) var(--ui-reset-button, #f07178);
+  }
 }
 
 /*
@@ -874,41 +962,19 @@ body {
 /* ─────────────────────────── feedback ─────────────────────────── */
 
 /*
- * A lit pad lifts slightly. The old "shrink" class pushed it *away* on
- * press, which reads as the board receding from you rather than responding.
+ * The fail cue deliberately has no board styling. It used to grey the pads
+ * and fade them back, then shake the console; both were dropped. The buzz,
+ * the "game over" readout and a haptic pulse (Container) carry it. Don't
+ * hang an `animation` off a fail class on .container — it replaces
+ * console-in, which then replays from opacity 0 when the class comes off.
  */
-.button.lit {
-  transform: scale(1.015);
-  transition: transform 0.12s ease-out;
-}
-
-/*
- * Fail cue. The board desaturates and dims for a beat while the buzz plays
- * and the final score holds, instead of the score blinking to zero the
- * instant a wrong pad is hit.
- */
-.App.is-failing .container {
-  animation: fail-shake 0.4s ease-in-out;
-}
-
-.App.is-failing .button {
-  filter: saturate(0.25) brightness(0.55);
-  transition: filter 0.25s ease;
-}
-
-@keyframes fail-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(calc(-0.8 * var(--u))); }
-  45% { transform: translateX(calc(0.7 * var(--u))); }
-  70% { transform: translateX(calc(-0.4 * var(--u))); }
-}
 
 @media (prefers-reduced-motion: reduce) {
-  .App.is-failing .container {
-    animation: none;
-  }
   .button.lit {
     transition: none;
+  }
+  .button.pressed {
+    scale: none;
   }
 }
 
@@ -957,6 +1023,198 @@ body {
 .github-attribution-icon {
   line-height: 1;
   flex-shrink: 0;
+}
+
+/* ─────────────────────────── keyboard tips ─────────────────────────── */
+
+/*
+ * Pad hotkey badges. Always in the DOM, shown by .tips-on on the app, so
+ * they can float in and out rather than pop.
+ *
+ * Centred in the pad's box, which on a quarter-circle pad lands at ~0.7 of
+ * its radius — the middle of the coloured band between the centre disc and
+ * the rim. Sized in --u like everything else on the console.
+ */
+.pad-key {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  min-width: calc(4.2 * var(--u));
+  padding: calc(0.5 * var(--u)) calc(1 * var(--u));
+  border: calc(0.2 * var(--u)) solid var(--ui-keycap-edge, rgba(214, 222, 235, 0.35));
+  border-bottom-width: calc(0.5 * var(--u));
+  border-radius: calc(0.9 * var(--u));
+  background: var(--ui-keycap-fill, rgba(1, 14, 24, 0.6));
+  color: var(--ui-text-primary, #d6deeb);
+  font-family: 'Lilita One', sans-serif;
+  font-size: calc(2.8 * var(--u));
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  scale: 0.8;
+  transition:
+    opacity 180ms ease-out,
+    scale 220ms cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+/* The badge is absolutely positioned, so the pad has to anchor it. */
+.button {
+  position: relative;
+}
+
+.App.tips-on .pad-key {
+  opacity: 1;
+  scale: 1;
+}
+
+/*
+ * Corner toggle, bottom-left — opposite the GitHub badge and dressed the
+ * same, so the two corners read as a pair.
+ */
+.keyboard-tips {
+  position: fixed;
+  bottom: 0.85rem;
+  left: 1rem;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.keyboard-tips-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--ui-chip-fill, rgba(19, 42, 62, 0.92));
+  color: var(--no-text-secondary, #9db2c0);
+  border: 1px solid var(--ui-chip-border, rgba(214, 222, 235, 0.18));
+  border-radius: 999px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--ui-shadow-soft, rgba(1, 14, 24, 0.45));
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Pinned or auto-shown, the toggle reads as "on". */
+.keyboard-tips-toggle[aria-pressed='true'] {
+  color: var(--ui-accent-link, #82aaff);
+  border-color: var(--ui-accent-link-dim, #4976a1);
+}
+
+@media (hover: hover) {
+  .keyboard-tips-toggle:hover {
+    background: var(--ui-chip-hover, #1d3b53);
+    color: var(--ui-accent-link, #82aaff);
+    border-color: var(--ui-accent-link-dim, #4976a1);
+  }
+}
+
+.keyboard-tips-toggle:focus-visible {
+  outline: 2px solid var(--ui-focus-ring, #82aaff);
+  outline-offset: 2px;
+}
+
+/*
+ * The card floats up out of the toggle. visibility is delayed on the way
+ * out so the fade finishes before it drops out of the accessibility tree
+ * and hit-testing; on the way in it flips immediately.
+ */
+.keyboard-tips-card {
+  order: -1;
+  padding: 0.6rem 0.8rem;
+  background: var(--ui-chip-fill, rgba(19, 42, 62, 0.92));
+  border: 1px solid var(--ui-chip-border, rgba(214, 222, 235, 0.18));
+  border-radius: 10px;
+  box-shadow: 0 6px 20px var(--ui-shadow-soft, rgba(1, 14, 24, 0.45));
+  color: var(--ui-text-primary, #d6deeb);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    sans-serif;
+  font-size: 0.78rem;
+  transform-origin: bottom left;
+  opacity: 0;
+  translate: 0 6px;
+  scale: 0.97;
+  visibility: hidden;
+  transition:
+    opacity 160ms ease-out,
+    translate 200ms ease-out,
+    scale 200ms ease-out,
+    visibility 0s linear 200ms;
+}
+
+.keyboard-tips-card.open {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.keyboard-tips-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 0.8rem;
+  row-gap: 0.4rem;
+  align-items: center;
+}
+
+/* Each row's two cells join the card's grid, so the columns line up. */
+.keyboard-tips-card li {
+  display: contents;
+}
+
+.keyboard-tips-keys {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.keyboard-tips-card kbd {
+  min-width: 1.4rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--ui-keycap-edge, rgba(214, 222, 235, 0.35));
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--ui-screen, #010e18);
+  font-family: inherit;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.keyboard-tips-action {
+  color: var(--no-text-secondary, #9db2c0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pad-key,
+  .keyboard-tips-card {
+    scale: none;
+    translate: none;
+  }
+  .pad-key {
+    translate: -50% -50%;
+  }
+}
+
+/*
+ * No toggle on touch-only devices: there's no keyboard to learn. The card
+ * and badges still come up on their own if one gets plugged in, since any
+ * keypress switches auto mode on.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .keyboard-tips-toggle {
+    display: none;
+  }
 }
 
 /* ─────────────────────────── narrow screens ─────────────────────────── */

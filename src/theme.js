@@ -194,8 +194,12 @@ export const ui = {
   resetButton: colors.semantic.error,
 
   // Pad press flash, painted over whichever pad colour is active.
-  flash: alpha(neutral.white, 0.45),
-  flashFade: alpha(neutral.white, 0.06),
+  flash: alpha(neutral.white, 0.55),
+  flashFade: alpha(neutral.white, 0),
+  // Hotkey badge floating on each pad. Dark glass rather than a solid chip,
+  // so the pad's colour still reads through around the number.
+  keycapFill: alpha(background.floor, 0.6),
+  keycapEdge: alpha(text.primary, 0.35),
 
   // Corner attribution badge, matching the one in react-connect4.
   chipFill: alpha(background.elevated, 0.92),

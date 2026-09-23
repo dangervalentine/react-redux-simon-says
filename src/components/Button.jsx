@@ -28,18 +28,23 @@ const Button = forwardRef(function Button(
   const pressTimerRef = useRef(null);
   const toneRef = useRef(null);
 
-  const flash = useCallback(() => {
-    setLit(true);
-    stopTone(toneRef.current);
-    toneRef.current = playTone(index);
-
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setLit(false);
+  // `ms` lets playback shorten the light as the sequence speeds up; `tone`
+  // off is for the silent "this one" blinks under the fail cue.
+  const flash = useCallback(
+    ({ ms = PAD_LIT_MS, tone = true } = {}) => {
+      setLit(true);
       stopTone(toneRef.current);
-      toneRef.current = null;
-    }, PAD_LIT_MS);
-  }, [index]);
+      toneRef.current = tone ? playTone(index) : null;
+
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        setLit(false);
+        stopTone(toneRef.current);
+        toneRef.current = null;
+      }, ms);
+    },
+    [index],
+  );
 
   const handlePress = useCallback(() => {
     if (inputPause || !isPlaying) return;

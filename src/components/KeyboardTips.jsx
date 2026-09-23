@@ -10,11 +10,13 @@
  * pill so the two corners read as a pair.
  */
 
+// Kept terse: the card shares a corner with a console that fills most of
+// a phone screen, and every character of width is a character of overlap.
 const SHORTCUTS = [
-  { keys: ['Space', 'Enter'], action: 'Start a game' },
-  { keys: ['1', '2', '3', '4'], action: 'Press a pad' },
-  { keys: ['Tab'], action: 'Move between controls' },
-  { keys: ['?'], action: 'Show or hide these tips' },
+  { keys: ['Space', 'Enter'], action: 'Start game' },
+  { keys: ['1', '2', '3', '4'], action: 'Press pad' },
+  { keys: ['Tab'], action: 'Move focus' },
+  { keys: ['?'], action: 'Toggle tips' },
 ];
 
 const KeyboardTips = ({ visible, onToggle }) => (

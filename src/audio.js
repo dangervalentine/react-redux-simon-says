@@ -1,87 +1,104 @@
 import { sounds } from './resources';
 
 /**
- * Tone playback.
+ * Tone playback, on the Web Audio API.
  *
- * Every press used to build a fresh `new Audio()`, set `currentTime` on it
- * before it had loaded (a no-op on an unloaded element, so the intended
- * trim never actually applied), and leave it to the GC. The first press of
- * each pad waited on a network fetch, which is why the opening tones of a
- * round arrived late or not at all.
+ * This used to be a pool of <audio> elements. Two things forced the move:
  *
- * Now each tone is loaded once up front and replayed from a short pool of
- * clones, so a pad can be re-struck before its previous tone has finished
- * without either one cutting out.
+ * - A tone has to be cut when its pad goes dark, and playback speeds up as
+ *   the sequence grows, so tones get cut shorter and shorter. Pausing an
+ *   <audio> element mid-waveform clicks. A gain node can ramp to silence
+ *   over a few milliseconds instead.
+ * - iOS ignores HTMLMediaElement.volume entirely, so any level set in code
+ *   was silently full-scale on iPhones. Gain nodes work everywhere.
+ *
+ * Levels are baked into the files (scripts/make-sounds.sh); `volume` here is
+ * only for deliberate one-off adjustments.
+ *
+ * Note that Web Audio follows the iOS ring/silent switch, where <audio> did
+ * not: a muted phone now plays the game muted, like any other game.
  */
-
-/** The samples open with a beat of silence; skip it so tones land on time. */
-const TONE_OFFSET = 0.125;
 
 /** Indices into `sounds` that aren't pad tones. */
 export const FAIL_TONE = 4;
 export const ROUND_TONE = 5;
 
-const POOL_SIZE = 3;
+/** Fade applied when a tone is cut, long enough to be click-free. */
+const STOP_FADE_S = 0.025;
 
-const pools = sounds.map((src) =>
-  Array.from({ length: POOL_SIZE }, () => {
-    const el = new Audio(src);
-    el.preload = 'auto';
-    return el;
-  }),
+let ctx = null;
+const buffers = new Array(sounds.length).fill(null);
+
+// Start downloading straight away, before there's a context to decode into:
+// the bytes are ready by the time the player's first gesture creates one.
+const downloads = sounds.map((src) =>
+  fetch(src)
+    .then((res) => res.arrayBuffer())
+    .catch(() => null),
 );
 
-const cursors = sounds.map(() => 0);
-
-const take = (index) => {
-  const pool = pools[index];
-  if (!pool) return null;
-  const el = pool[cursors[index]];
-  cursors[index] = (cursors[index] + 1) % pool.length;
-  return el;
-};
-
-/**
- * Start a tone. Returns the element so the caller can stop it when the pad
- * goes dark — a tone that outlives its light is what made the old playback
- * feel out of sync with the board.
- */
-export const playTone = (index, { volume = 1, offset = TONE_OFFSET } = {}) => {
-  const el = take(index);
-  if (!el) return null;
-
-  el.volume = volume;
-  try {
-    el.currentTime = offset;
-  } catch {
-    // Safari throws if metadata hasn't loaded yet; the tone still plays from
-    // the top, which is better than dropping it.
-  }
-  // A rejected play() is normal here (rapid re-press, or autoplay policy
-  // before the first user gesture) and shouldn't reach the console.
-  void el.play().catch(() => {});
-  return el;
-};
-
-/** Stop and rewind a tone started by `playTone`. */
-export const stopTone = (el) => {
-  if (!el) return;
-  el.pause();
-  try {
-    el.currentTime = TONE_OFFSET;
-  } catch {
-    /* nothing useful to do */
-  }
-};
+const decodeAll = () =>
+  Promise.all(
+    downloads.map(async (download, i) => {
+      if (buffers[i]) return;
+      const bytes = await download;
+      if (!bytes) return;
+      try {
+        // decodeAudioData detaches the buffer it's given, and a second
+        // primeAudio() would hand it the same one — so decode a copy.
+        buffers[i] = await ctx.decodeAudioData(bytes.slice(0));
+      } catch {
+        /* an undecodable file is just a silent pad */
+      }
+    }),
+  );
 
 /**
- * Browsers block audio until the user has interacted with the page. The
- * switch is that first interaction, so priming here means the very first
- * tone of the very first round plays rather than being silently dropped.
+ * Browsers won't start audio until the user has interacted with the page, so
+ * the context is created and resumed on that first gesture — starting a
+ * game, by switch or by key. Creating it earlier only gets a warning and a
+ * suspended context.
  */
 export const primeAudio = () => {
-  for (const pool of pools) {
-    const el = pool[0];
-    if (el.readyState === 0) el.load();
+  if (!ctx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    ctx = new Ctx();
   }
+  if (ctx.state === 'suspended') void ctx.resume();
+  void decodeAll();
+};
+
+/**
+ * Start a tone. Returns a handle for `stopTone`, or null if audio isn't
+ * available yet (no gesture so far, or still decoding).
+ */
+export const playTone = (index, { volume = 1 } = {}) => {
+  const buffer = buffers[index];
+  if (!ctx || !buffer) return null;
+
+  const source = ctx.createBufferSource();
+  const gain = ctx.createGain();
+  source.buffer = buffer;
+  gain.gain.value = volume;
+  source.connect(gain).connect(ctx.destination);
+  source.start();
+
+  const handle = { source, gain, stopped: false };
+  source.onended = () => {
+    handle.stopped = true;
+  };
+  return handle;
+};
+
+/** Fade a tone started by `playTone` to silence and stop it. */
+export const stopTone = (handle) => {
+  if (!handle || handle.stopped || !ctx) return;
+  handle.stopped = true;
+  const now = ctx.currentTime;
+  const { gain, source } = handle;
+  gain.gain.cancelScheduledValues(now);
+  gain.gain.setValueAtTime(gain.gain.value, now);
+  gain.gain.linearRampToValueAtTime(0, now + STOP_FADE_S);
+  source.stop(now + STOP_FADE_S);
 };

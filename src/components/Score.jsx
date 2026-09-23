@@ -20,10 +20,26 @@ const status = ({ isFailing, isReplaying, isPlaying }) => {
   return { text: 'press start', tone: 'idle' };
 };
 
-const Score = ({ score, hScore, isPlaying, isReplaying, isFailing }) => {
+const Score = ({
+  score,
+  hScore,
+  isPlaying,
+  isReplaying,
+  isFailing,
+  isNewRecord,
+}) => {
   const { text, tone } = status({ isFailing, isReplaying, isPlaying });
   // A run that has caught the record is worth calling out while it happens.
   const atRecord = hScore !== '000' && score === hScore;
+  // The moment it's beaten — not merely matched — the HI line blinks and
+  // says so.
+  const hiClass = [
+    'screen-hi',
+    atRecord && 'screen-hi-matched',
+    isNewRecord && 'screen-hi-new',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className="game-score">
@@ -31,10 +47,12 @@ const Score = ({ score, hScore, isPlaying, isReplaying, isFailing }) => {
         className={`game-screen ${isPlaying || isFailing ? 'screen-on' : 'screen-off'}`}
       >
         <span
-          className={`screen-hi${atRecord ? ' screen-hi-matched' : ''}`}
-          aria-label={`High score ${parseInt(hScore, 10)}`}
+          className={hiClass}
+          aria-label={`${isNewRecord ? 'New high score' : 'High score'} ${parseInt(hScore, 10)}`}
         >
-          <span aria-hidden="true">hi {hScore}</span>
+          <span aria-hidden="true">
+            {isNewRecord ? 'new' : 'hi'} {hScore}
+          </span>
         </span>
 
         <span className="screen-main">

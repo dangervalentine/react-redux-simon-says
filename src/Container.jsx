@@ -10,11 +10,14 @@ import { loadTipsMode, saveTipsMode } from './storage';
 import { FAIL_TONE, ROUND_TONE, playTone, primeAudio } from './audio';
 import { delay } from './helpers';
 import {
+  FAIL_BLINKS,
+  FAIL_BLINK_OFF_MS,
+  FAIL_BLINK_ON_MS,
   FAIL_HOLD_MS,
   FAIL_VIBRATION,
-  PAD_LIT_MS,
-  PLAYBACK_GAP_MS,
   PLAYBACK_LEAD_MS,
+  ROUND_PULSE_MS,
+  paceFor,
 } from './timing';
 import { colorSchemes } from './theme';
 import * as actionCreators from './actions/control';
@@ -39,6 +42,7 @@ const Container = () => {
   // rather than just going quietly unresponsive.
   const [isReplaying, setIsReplaying] = useState(false);
   const [isFailing, setIsFailing] = useState(false);
+  const [roundPulse, setRoundPulse] = useState(false);
 
   const startGame = useCallback(() => {
     // The switch is the first user gesture on the page, which is exactly when
@@ -143,10 +147,11 @@ const Container = () => {
       await delay(PLAYBACK_LEAD_MS);
       if (cancelled) return;
 
+      const { lit, gap } = paceFor(playbackSequence.length);
       for (const padIndex of playbackSequence) {
         if (cancelled) return;
-        padRefs.current[padIndex]?.flash();
-        await delay(PAD_LIT_MS + PLAYBACK_GAP_MS);
+        padRefs.current[padIndex]?.flash({ ms: lit });
+        await delay(lit + gap);
       }
 
       if (cancelled) return;
@@ -170,20 +175,37 @@ const Container = () => {
     if (!lastEvent) return undefined;
 
     if (lastEvent.type === 'round') {
-      playTone(ROUND_TONE, { volume: 0.6 });
-      return undefined;
+      // Chime plus a brief lift of the whole board and the score, landing in
+      // the lead-in before the next playback starts. The chime used to be
+      // mastered ~20 dB under the pads and was effectively inaudible.
+      playTone(ROUND_TONE);
+      setRoundPulse(true);
+      const timer = setTimeout(() => setRoundPulse(false), ROUND_PULSE_MS);
+      return () => {
+        clearTimeout(timer);
+        setRoundPulse(false);
+      };
     }
 
     let cancelled = false;
-    // Level is baked into the sample: the original was a full-scale square
-    // wave that startled people even turned down here, so the file itself
-    // was low-passed and dropped to sit well under the pad tones.
     playTone(FAIL_TONE);
     // Haptic bump in place of the old board shake. Optional chaining because
     // support is patchy — iOS Safari and desktop browsers have no vibrate().
     navigator.vibrate?.(FAIL_VIBRATION);
     setIsReplaying(false);
     setIsFailing(true);
+
+    // Show the pad they should have pressed: a few silent blinks under the
+    // fail cue, the way the original Simon points at the one you missed.
+    const blinkExpected = async () => {
+      const pad = padRefs.current[lastEvent.expected];
+      for (let i = 0; i < FAIL_BLINKS; i++) {
+        if (cancelled) return;
+        pad?.flash({ ms: FAIL_BLINK_ON_MS, tone: false });
+        await delay(FAIL_BLINK_ON_MS + FAIL_BLINK_OFF_MS);
+      }
+    };
+    void blinkExpected();
 
     const timer = setTimeout(() => {
       if (cancelled) return;
@@ -197,8 +219,43 @@ const Container = () => {
     };
   }, [lastEvent, dispatch]);
 
+  // ── new record ──
+  //
+  // The record the run started against. Beating it is called out once, at
+  // the moment it happens; the HI line already stays lit while the run is
+  // level with the record, which covers the rest of the game.
+  const recordAtStart = useRef(0);
+  const [isNewRecord, setIsNewRecord] = useState(false);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    recordAtStart.current = parseInt(hScore, 10);
+    setIsNewRecord(false);
+    // Only on game start — hScore moving mid-run is what we're watching for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying]);
+
+  useEffect(() => {
+    const record = recordAtStart.current;
+    if (isPlaying && record > 0 && parseInt(score, 10) === record + 1) {
+      setIsNewRecord(true);
+    }
+  }, [score, isPlaying]);
+
+  // The player can act: playing, not watching playback, not mid fail-cue.
+  const isPlayerTurn = isPlaying && !inputPause && !isFailing;
+
+  const appClass = [
+    'App',
+    showTips && 'tips-on',
+    isPlayerTurn && 'player-turn',
+    roundPulse && 'round-pulse',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={`App${showTips ? ' tips-on' : ''}`}>
+    <div className={appClass}>
       <Header />
 
       <main className="stage">
@@ -223,6 +280,7 @@ const Container = () => {
             isPlaying={isPlaying}
             isReplaying={isReplaying}
             isFailing={isFailing}
+            isNewRecord={isNewRecord}
             startGame={startGame}
             changeColorScheme={changeColorScheme}
           />

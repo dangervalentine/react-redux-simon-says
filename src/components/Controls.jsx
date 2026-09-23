@@ -15,6 +15,7 @@ const Controls = ({
   isPlaying,
   isReplaying,
   isFailing,
+  isNewRecord,
   startGame,
   changeColorScheme,
 }) => (
@@ -38,6 +39,7 @@ const Controls = ({
         isPlaying={isPlaying}
         isReplaying={isReplaying}
         isFailing={isFailing}
+        isNewRecord={isNewRecord}
       />
       <ControlButtons
         isPlaying={isPlaying}

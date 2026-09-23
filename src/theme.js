@@ -196,6 +196,10 @@ export const ui = {
   // Pad press flash, painted over whichever pad colour is active.
   flash: alpha(neutral.white, 0.55),
   flashFade: alpha(neutral.white, 0),
+  // Halo around the console while it's the player's turn — the LCD's mint,
+  // so the rim and the "your turn" readout say the same thing.
+  turnGlow: alpha(accent.cyan, 0.32),
+
   // Hotkey badge floating on each pad. Dark glass rather than a solid chip,
   // so the pad's colour still reads through around the number.
   keycapFill: alpha(background.floor, 0.6),

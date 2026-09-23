@@ -99,11 +99,16 @@ export default function Control(state = initialState, action) {
           // player actually reached, then dispatches GAME_END to reset. The
           // old version reset in the same tick, so the number blinked away
           // before you could read it.
+          // `expected` is the pad they should have pressed, so the fail cue
+          // can show it rather than just announcing that they missed.
           return {
             ...state,
             isPlaying: false,
             inputPause: true,
-            lastEvent: nextEvent(state, "fail")
+            lastEvent: {
+              ...nextEvent(state, "fail"),
+              expected: state.playbackSequence[i]
+            }
           };
         }
       }
